@@ -1,343 +1,400 @@
+import uuid
 import json
 import os
 from datetime import datetime
 
-DATA_FILE = "health_data.json"
+class Product:
+    """
+    Represents a single product in the inventory.
+    This class is the foundation of the Inventory Management Module.
+    """
+    def __init__(self, name: str, price: float, initial_stock: int, product_id: str = None):
+        # Auto-generate a unique ID if one is not provided (e.g., when loading from file)
+        self.id = product_id if product_id else str(uuid.uuid4())[:8]
+        self.name = name
+        self.price = price
+        self.stock = initial_stock
+
+    def to_dict(self):
+        """Converts the product object to a dictionary for storage."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "price": self.price,
+            "stock": self.stock
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        """Creates a Product object from a dictionary loaded from storage."""
+        return cls(
+            name=data['name'],
+            price=data['price'],
+            initial_stock=data['stock'],
+            product_id=data['id']
+        )
+
+    def display_info(self):
+        """Returns a formatted string for displaying product details."""
+        return (f"ID: {self.id} | Name: {self.name:<20} | Price: ${self.price:6.2f} | "
+                f"Stock: {self.stock}")
+
+    def __str__(self):
+        return self.display_info()
+
+    def __repr__(self):
+        return f"Product(id='{self.id}', name='{self.name}', stock={self.stock})"
 
 
-def load_data():
-    """Load user data from JSON file, or return empty dict if file not found."""
-    if not os.path.exists(DATA_FILE):
-        return {}
-    try:
-        with open(DATA_FILE, "r") as f:
-            return json.load(f)
-    except json.JSONDecodeError:
-        # If file is corrupted or empty, start fresh
-        return {}
+class DataStorage:
+    """
+    Handles persistent storage for the application using JSON file I/O.
+    This fulfills the File I/O requirement and centralizes data handling.
+    """
+    def __init__(self, filename="inventory_data.json"):
+        self.filename = filename
+        self._initialize_file()
 
+    def _initialize_file(self):
+        """Ensures the data file exists and contains the necessary structure."""
+        if not os.path.exists(self.filename):
+            # Initialize with empty lists for keys we expect to save
+            initial_data = {'products': [], 'orders': []}
+            with open(self.filename, 'w') as f:
+                json.dump(initial_data, f, indent=4)
+            print(f"Created new data file: {self.filename}")
 
-def save_data(data):
-    """Save user data to JSON file."""
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
-
-def register_user(data):
-    """Register a new user with basic profile details."""
-    print("\n--- User Registration ---")
-    username = input("Enter a username: ").strip()
-
-    if username in data:
-        print("Username already exists. Try a different one.")
-        return data
-
-    password = input("Enter a password: ").strip()
-    name = input("Enter your full name: ").strip()
-    try:
-        age = int(input("Enter your age: "))
-    except ValueError:
-        print("Invalid age. Setting age = 0.")
-        age = 0
-
-    try:
-        height = float(input("Enter your height (in meters): "))
-    except ValueError:
-        print("Invalid height. Setting height = 0.0.")
-        height = 0.0
-
-    try:
-        weight = float(input("Enter your weight (in kg): "))
-    except ValueError:
-        print("Invalid weight. Setting weight = 0.0.")
-        weight = 0.0
-
-    # Each user entry contains profile and a list of daily logs
-    data[username] = {
-        "password": password,
-        "profile": {
-            "name": name,
-            "age": age,
-            "height": height,
-            "weight": weight
-        },
-        "logs": []  # list of metric entries
-    }
-
-    save_data(data)
-    print("Registration successful!")
-    return data
-
-
-def login_user(data):
-    """Authenticate user and return username if successful, else None."""
-    print("\n--- User Login ---")
-    username = input("Enter username: ").strip()
-    password = input("Enter password: ").strip()
-
-    if username in data and data[username]["password"] == password:
-        print(f"Login successful. Welcome, {data[username]['profile']['name']}!")
-        return username
-    else:
-        print("Invalid username or password.")
-        return None
-
-
-def log_metrics(data, username):
-    """Add a new log of daily health metrics for a user."""
-    print("\n--- Log Today's Health Metrics ---")
-    today = datetime.now().strftime("%Y-%m-%d")
-
-    try:
-        steps = int(input("Enter steps walked today: "))
-    except ValueError:
-        print("Invalid steps. Setting steps = 0.")
-        steps = 0
-
-    try:
-        sleep_hours = float(input("Enter sleep duration (in hours): "))
-    except ValueError:
-        print("Invalid sleep duration. Setting sleep = 0.0.")
-        sleep_hours = 0.0
-
-    try:
-        calories = float(input("Enter calories consumed today: "))
-    except ValueError:
-        print("Invalid calories. Setting calories = 0.0.")
-        calories = 0.0
-
-    try:
-        water = float(input("Enter water intake (in liters): "))
-    except ValueError:
-        print("Invalid water intake. Setting water = 0.0.")
-        water = 0.0
-
-    try:
-        heart_rate = float(input("Enter average heart rate today (bpm): "))
-    except ValueError:
-        print("Invalid heart rate. Setting heart rate = 0.0.")
-        heart_rate = 0.0
-
-    entry = {
-        "date": today,
-        "steps": steps,
-        "sleep_hours": sleep_hours,
-        "calories": calories,
-        "water_liters": water,
-        "avg_heart_rate": heart_rate
-    }
-
-    data[username]["logs"].append(entry)
-    save_data(data)
-    print("Health metrics logged successfully.")
-
-
-def view_logs(data, username):
-    """Display all logged health metrics for the user."""
-    print("\n--- Your Health Logs ---")
-    logs = data[username]["logs"]
-
-    if not logs:
-        print("No logs found. Please add some entries.")
-        return
-
-    for idx, log in enumerate(logs):
-        print(f"\nRecord ID: {idx}")
-        print(f"  Date          : {log['date']}")
-        print(f"  Steps         : {log['steps']}")
-        print(f"  Sleep (hrs)   : {log['sleep_hours']}")
-        print(f"  Calories      : {log['calories']}")
-        print(f"  Water (liters): {log['water_liters']}")
-        print(f"  Avg Heart Rate: {log['avg_heart_rate']}")
-
-
-def update_log(data, username):
-    """Update an existing log entry by record ID."""
-    logs = data[username]["logs"]
-    if not logs:
-        print("No logs available to update.")
-        return
-
-    view_logs(data, username)
-    try:
-        record_id = int(input("\nEnter Record ID to update: "))
-    except ValueError:
-        print("Invalid ID.")
-        return
-
-    if record_id < 0 or record_id >= len(logs):
-        print("Record ID out of range.")
-        return
-
-    print("Enter new values (leave blank to keep old value):")
-    old_log = logs[record_id]
-
-    steps_inp = input(f"Steps [{old_log['steps']}]: ").strip()
-    sleep_inp = input(f"Sleep hours [{old_log['sleep_hours']}]: ").strip()
-    cal_inp = input(f"Calories [{old_log['calories']}]: ").strip()
-    water_inp = input(f"Water liters [{old_log['water_liters']}]: ").strip()
-    hr_inp = input(f"Avg Heart Rate [{old_log['avg_heart_rate']}]: ").strip()
-
-    # Update only if new values given
-    if steps_inp:
+    def load_data(self, key: str) -> list:
+        """
+        Loads data associated with a specific key ('products' or 'orders') from the JSON file.
+        Uses try/except for robust Error Handling (Non-Functional Requirement).
+        """
         try:
-            old_log["steps"] = int(steps_inp)
-        except ValueError:
-            print("Invalid steps. Value unchanged.")
-    if sleep_inp:
+            with open(self.filename, 'r') as f:
+                data = json.load(f)
+                return data.get(key, [])
+        except FileNotFoundError:
+            print(f"Warning: File {self.filename} not found. Returning empty list.")
+            return []
+        except json.JSONDecodeError:
+            # Handle corrupted or empty JSON file
+            print(f"Error: Could not decode JSON from {self.filename}. Data might be corrupted.")
+            return []
+
+    def save_data(self, data: list, key: str):
+        """
+        Saves the new list of data for a specific key back to the JSON file.
+        """
+        # Load the whole structure first
+        all_data = {}
         try:
-            old_log["sleep_hours"] = float(sleep_inp)
-        except ValueError:
-            print("Invalid sleep. Value unchanged.")
-    if cal_inp:
-        try:
-            old_log["calories"] = float(cal_inp)
-        except ValueError:
-            print("Invalid calories. Value unchanged.")
-    if water_inp:
-        try:
-            old_log["water_liters"] = float(water_inp)
-        except ValueError:
-            print("Invalid water. Value unchanged.")
-    if hr_inp:
-        try:
-            old_log["avg_heart_rate"] = float(hr_inp)
-        except ValueError:
-            print("Invalid heart rate. Value unchanged.")
-
-    logs[record_id] = old_log
-    save_data(data)
-    print("Record updated successfully.")
+            with open(self.filename, 'r') as f:
+                all_data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            all_data = {'products': [], 'orders': []}
+        
+        # Update the specific key with new data
+        all_data[key] = data
+        
+        # Save back to file
+        with open(self.filename, 'w') as f:
+            json.dump(all_data, f, indent=4)
 
 
-def delete_log(data, username):
-    """Delete a log entry by record ID."""
-    logs = data[username]["logs"]
-    if not logs:
-        print("No logs available to delete.")
-        return
-
-    view_logs(data, username)
-    try:
-        record_id = int(input("\nEnter Record ID to delete: "))
-    except ValueError:
-        print("Invalid ID.")
-        return
-
-    if record_id < 0 or record_id >= len(logs):
-        print("Record ID out of range.")
-        return
-
-    confirm = input("Are you sure you want to delete this record? (y/n): ").strip().lower()
-    if confirm == "y":
-        logs.pop(record_id)
-        save_data(data)
-        print("Record deleted successfully.")
-    else:
-        print("Deletion cancelled.")
-
-
-def summarize_activity(data, username):
-    """Compute summary statistics and classify activity level."""
-    logs = data[username]["logs"]
-    if not logs:
-        print("No logs found for summary.")
-        return
-
-    total_steps = sum(log["steps"] for log in logs)
-    total_sleep = sum(log["sleep_hours"] for log in logs)
-    total_cal = sum(log["calories"] for log in logs)
-    total_water = sum(log["water_liters"] for log in logs)
-    total_hr = sum(log["avg_heart_rate"] for log in logs)
-
-    n = len(logs)
-
-    avg_steps = total_steps / n
-    avg_sleep = total_sleep / n
-    avg_cal = total_cal / n
-    avg_water = total_water / n
-    avg_hr = total_hr / n
-
-    # Simple activity classification based on average steps
-    if avg_steps < 5000:
-        activity = "Sedentary"
-    elif 5000 <= avg_steps < 8000:
-        activity = "Lightly Active"
-    elif 8000 <= avg_steps < 10000:
-        activity = "Active"
-    else:
-        activity = "Very Active"
-
-    print("\n--- Summary & Activity Classification ---")
-    print(f"Number of records: {n}")
-    print(f"Average Steps       : {avg_steps:.2f}")
-    print(f"Average Sleep (hrs) : {avg_sleep:.2f}")
-    print(f"Average Calories    : {avg_cal:.2f}")
-    print(f"Average Water (L)   : {avg_water:.2f}")
-    print(f"Average Heart Rate  : {avg_hr:.2f}")
-    print(f"Activity Level      : {activity}")
-
-    # Optional: basic suggestion
-    if avg_sleep < 7:
-        print("Suggestion: Your average sleep is low. Try to get at least 7 hours of sleep.")
-    if avg_water < 2:
-        print("Suggestion: Increase your water intake to at least 2 liters per day.")
+class InventoryManager:
+    """
+    Enhanced inventory manager with comprehensive product management.
+    """
+    def __init__(self, storage_path="inventory_data.json"):
+        self.storage = DataStorage(storage_path)
+        self.products = {}
+        self.load_products()
+    
+    def load_products(self):
+        """Load products from storage"""
+        data = self.storage.load_data('products')
+        for product_data in data:
+            product = Product.from_dict(product_data)
+            self.products[product.id] = product
+    
+    def get_product(self, product_id: str):
+        """Get product by ID"""
+        return self.products.get(product_id)
+    
+    def add_product(self, name: str, price: float, initial_stock: int) -> str:
+        """Add a new product to inventory and return its ID"""
+        product = Product(name, price, initial_stock)
+        self.products[product.id] = product
+        self.save_products()
+        return product.id
+    
+    def update_product(self, product_id: str, name: str = None, price: float = None, stock: int = None):
+        """Update product details"""
+        product = self.get_product(product_id)
+        if product:
+            if name is not None:
+                product.name = name
+            if price is not None:
+                product.price = price
+            if stock is not None:
+                product.stock = stock
+            self.save_products()
+            return True
+        return False
+    
+    def update_stock(self, product_id: str, quantity_change: int):
+        """Update product stock"""
+        if product_id in self.products:
+            self.products[product_id].stock += quantity_change
+            self.save_products()
+            return True
+        return False
+    
+    def list_products(self):
+        """List all products"""
+        if not self.products:
+            print("No products in inventory.")
+            return
+        
+        print("\n--- Inventory ---")
+        for product in self.products.values():
+            print(product)
+        print("-----------------")
+    
+    def save_products(self):
+        """Save products to storage"""
+        data = [product.to_dict() for product in self.products.values()]
+        self.storage.save_data(data, 'products')
 
 
-def user_dashboard(data, username):
-    """Menu loop for logged-in user."""
-    while True:
-        print("\n===== User Dashboard =====")
-        print("1. Log today's health metrics")
-        print("2. View all logs")
-        print("3. Update a log")
-        print("4. Delete a log")
-        print("5. View summary & activity classification")
-        print("6. Logout")
+class Order:
+    """
+    Represents a single customer order/sale transaction (Order Processing Module).
+    """
+    def __init__(self, items: dict, order_id: str = None, date: str = None):
+        self.id = order_id if order_id else str(uuid.uuid4())[:8]
+        # items structure: {product_id: quantity_sold}
+        self.items = items
+        self.date = date if date else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        choice = input("Enter your choice: ").strip()
+    def to_dict(self):
+        """Converts the order object to a dictionary for storage."""
+        return {
+            "id": self.id,
+            "items": self.items,
+            "date": self.date
+        }
 
-        if choice == "1":
-            log_metrics(data, username)
-        elif choice == "2":
-            view_logs(data, username)
-        elif choice == "3":
-            update_log(data, username)
-        elif choice == "4":
-            delete_log(data, username)
-        elif choice == "5":
-            summarize_activity(data, username)
-        elif choice == "6":
-            print("Logging out...")
-            break
-        else:
-            print("Invalid choice. Please try again.")
+    @classmethod
+    def from_dict(cls, data: dict):
+        """Creates an Order object from a dictionary loaded from storage."""
+        return cls(items=data['items'], order_id=data['id'], date=data['date'])
 
-
-def main():
-    data = load_data()
-
-    while True:
-        print("\n===== Personal Health Dashboard =====")
-        print("1. Register")
-        print("2. Login")
-        print("3. Exit")
-
-        choice = input("Enter your choice: ").strip()
-
-        if choice == "1":
-            data = register_user(data)
-        elif choice == "2":
-            username = login_user(data)
-            if username is not None:
-                user_dashboard(data, username)
-        elif choice == "3":
-            print("Exiting... Data saved.")
-            save_data(data)
-            break
-        else:
-            print("Invalid choice. Please try again.")
+    def calculate_total(self, inventory: InventoryManager) -> float:
+        """Calculates the total cost of the order based on current product prices."""
+        total = 0.0
+        for product_id, quantity in self.items.items():
+            product = inventory.get_product(product_id)
+            if product:
+                total += product.price * quantity
+        return total
+    
+    def display_order(self, inventory: InventoryManager):
+        """Display order details"""
+        total = self.calculate_total(inventory)
+        print(f"\n--- Order {self.id} ---")
+        print(f"Date: {self.date}")
+        for product_id, quantity in self.items.items():
+            product = inventory.get_product(product_id)
+            if product:
+                print(f"  {product.name}: {quantity} x ${product.price:.2f} = ${product.price * quantity:.2f}")
+        print(f"Total: ${total:.2f}")
+        print("-------------------")
 
 
+class OrderManager:
+    """
+    Manages all sales orders and provides reporting functions.
+    """
+    def __init__(self, inventory_manager: InventoryManager, storage_path="inventory_data.json"):
+        self.inventory = inventory_manager
+        self.orders = []
+        self.storage = DataStorage(storage_path)
+        self.load_orders()
+
+    def create_order(self, cart: dict) -> Order:
+        """
+        Creates a new order, validates stock, and processes the transaction.
+        Implements the core order processing workflow.
+        """
+        # First, validate all items in cart
+        for product_id, quantity in cart.items():
+            product = self.inventory.get_product(product_id)
+            if not product:
+                print(f"❌ Error: Product ID {product_id} not found. Order cancelled.")
+                return None
+            if product.stock < quantity:
+                print(f"❌ Error: Only {product.stock} of {product.name} available. Order cancelled.")
+                return None
+        
+        # If validation passes, process the order
+        order_items = {}
+        for product_id, quantity in cart.items():
+            # Deduct stock
+            self.inventory.update_stock(product_id, -quantity)
+            order_items[product_id] = quantity
+
+        # Create and Record Order
+        new_order = Order(order_items)
+        self.orders.append(new_order)
+        self.save_orders()
+        total = new_order.calculate_total(self.inventory)
+        print(f"✅ Order {new_order.id} created successfully! Total: ${total:.2f}")
+        return new_order
+
+    # --- Reporting & Analytics Functional Module ---
+    def generate_sales_report(self):
+        """Calculates and displays total revenue across all recorded orders."""
+        if not self.orders:
+            print("No sales orders recorded yet.")
+            return
+
+        total_revenue = sum(order.calculate_total(self.inventory) for order in self.orders)
+        total_items_sold = sum(sum(order.items.values()) for order in self.orders)
+        
+        print("\n--- Sales Report ---")
+        print(f"Total Orders Processed: {len(self.orders)}")
+        print(f"Total Items Sold: {total_items_sold}")
+        print(f"Total Revenue Generated: ${total_revenue:.2f}")
+        print("--------------------")
+
+    def list_orders(self):
+        """List all orders"""
+        if not self.orders:
+            print("No orders recorded yet.")
+            return
+        
+        print("\n--- All Orders ---")
+        for order in self.orders:
+            order.display_order(self.inventory)
+        print("------------------")
+
+    # --- Data Persistence Methods ---
+    def save_orders(self):
+        """Saves all current order data to the persistent storage."""
+        data = [o.to_dict() for o in self.orders]
+        self.storage.save_data(data, 'orders')
+
+    def load_orders(self):
+        """Loads order data from storage into the manager."""
+        data = self.storage.load_data('orders')
+        self.orders = [Order.from_dict(o) for o in data]
+
+
+class InventorySystem:
+    """
+    Main system class that provides a unified interface for inventory and order management.
+    """
+    def __init__(self):
+        self.inventory = InventoryManager()
+        self.order_manager = OrderManager(self.inventory)
+    
+    def run_cli(self):
+        """Simple command-line interface for the inventory system"""
+        while True:
+            print("\n=== Inventory Management System ===")
+            print("1. List Products")
+            print("2. Add Product")
+            print("3. Update Product")
+            print("4. Create Order")
+            print("5. List Orders")
+            print("6. Sales Report")
+            print("7. Exit")
+            
+            choice = input("Enter your choice (1-7): ").strip()
+            
+            if choice == '1':
+                self.inventory.list_products()
+            
+            elif choice == '2':
+                name = input("Enter product name: ").strip()
+                try:
+                    price = float(input("Enter product price: "))
+                    stock = int(input("Enter initial stock: "))
+                    product_id = self.inventory.add_product(name, price, stock)
+                    print(f"✅ Product added with ID: {product_id}")
+                except ValueError:
+                    print("❌ Invalid input. Please enter valid numbers for price and stock.")
+            
+            elif choice == '3':
+                product_id = input("Enter product ID: ").strip()
+                product = self.inventory.get_product(product_id)
+                if not product:
+                    print("❌ Product not found.")
+                    continue
+                
+                print(f"Current: {product}")
+                name = input("Enter new name (or press Enter to keep current): ").strip()
+                price_input = input("Enter new price (or press Enter to keep current): ").strip()
+                stock_input = input("Enter new stock (or press Enter to keep current): ").strip()
+                
+                name = name if name else None
+                try:
+                    price = float(price_input) if price_input else None
+                    stock = int(stock_input) if stock_input else None
+                except ValueError:
+                    print("❌ Invalid input for price or stock. Update failed.")
+                    continue
+                
+                if self.inventory.update_product(product_id, name, price, stock):
+                    print("✅ Product updated successfully.")
+                else:
+                    print("❌ Failed to update product.")
+            
+            elif choice == '4':
+                cart = {}
+                print("\n--- Create New Order ---")
+                while True:
+                    self.inventory.list_products()
+                    product_id = input("Enter product ID to add to cart (or 'done' to finish): ").strip()
+                    if product_id.lower() == 'done':
+                        break
+                    
+                    product = self.inventory.get_product(product_id)
+                    if not product:
+                        print("❌ Product not found.")
+                        continue
+                    
+                    try:
+                        quantity = int(input(f"Enter quantity for {product.name}: "))
+                        if quantity <= 0:
+                            print("❌ Quantity must be positive.")
+                            continue
+                        cart[product_id] = cart.get(product_id, 0) + quantity
+                        print(f"✅ Added {quantity} of {product.name} to cart.")
+                    except ValueError:
+                        print("❌ Invalid quantity.")
+                
+                if cart:
+                    self.order_manager.create_order(cart)
+                else:
+                    print("❌ Cart is empty. Order cancelled.")
+            
+            elif choice == '5':
+                self.order_manager.list_orders()
+            
+            elif choice == '6':
+                self.order_manager.generate_sales_report()
+            
+            elif choice == '7':
+                print("Goodbye!")
+                break
+            
+            else:
+                print("❌ Invalid choice. Please try again.")
+
+
+# Example usage
 if __name__ == "__main__":
-    main()
+    system = InventorySystem()
+    system.run_cli()
