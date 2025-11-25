@@ -1,0 +1,400 @@
+import uuid
+import json
+import os
+from datetime import datetime
+
+class Product:
+    """
+    Represents a single product in the inventory.
+    This class is the foundation of the Inventory Management Module.
+    """
+    def __init__(self, name: str, price: float, initial_stock: int, product_id: str = None):
+        # Auto-generate a unique ID if one is not provided (e.g., when loading from file)
+        self.id = product_id if product_id else str(uuid.uuid4())[:8]
+        self.name = name
+        self.price = price
+        self.stock = initial_stock
+
+    def to_dict(self):
+        """Converts the product object to a dictionary for storage."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "price": self.price,
+            "stock": self.stock
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        """Creates a Product object from a dictionary loaded from storage."""
+        return cls(
+            name=data['name'],
+            price=data['price'],
+            initial_stock=data['stock'],
+            product_id=data['id']
+        )
+
+    def display_info(self):
+        """Returns a formatted string for displaying product details."""
+        return (f"ID: {self.id} | Name: {self.name:<20} | Price: ${self.price:6.2f} | "
+                f"Stock: {self.stock}")
+
+    def __str__(self):
+        return self.display_info()
+
+    def __repr__(self):
+        return f"Product(id='{self.id}', name='{self.name}', stock={self.stock})"
+
+
+class DataStorage:
+    """
+    Handles persistent storage for the application using JSON file I/O.
+    This fulfills the File I/O requirement and centralizes data handling.
+    """
+    def __init__(self, filename="inventory_data.json"):
+        self.filename = filename
+        self._initialize_file()
+
+    def _initialize_file(self):
+        """Ensures the data file exists and contains the necessary structure."""
+        if not os.path.exists(self.filename):
+            # Initialize with empty lists for keys we expect to save
+            initial_data = {'products': [], 'orders': []}
+            with open(self.filename, 'w') as f:
+                json.dump(initial_data, f, indent=4)
+            print(f"Created new data file: {self.filename}")
+
+    def load_data(self, key: str) -> list:
+        """
+        Loads data associated with a specific key ('products' or 'orders') from the JSON file.
+        Uses try/except for robust Error Handling (Non-Functional Requirement).
+        """
+        try:
+            with open(self.filename, 'r') as f:
+                data = json.load(f)
+                return data.get(key, [])
+        except FileNotFoundError:
+            print(f"Warning: File {self.filename} not found. Returning empty list.")
+            return []
+        except json.JSONDecodeError:
+            # Handle corrupted or empty JSON file
+            print(f"Error: Could not decode JSON from {self.filename}. Data might be corrupted.")
+            return []
+
+    def save_data(self, data: list, key: str):
+        """
+        Saves the new list of data for a specific key back to the JSON file.
+        """
+        # Load the whole structure first
+        all_data = {}
+        try:
+            with open(self.filename, 'r') as f:
+                all_data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            all_data = {'products': [], 'orders': []}
+        
+        # Update the specific key with new data
+        all_data[key] = data
+        
+        # Save back to file
+        with open(self.filename, 'w') as f:
+            json.dump(all_data, f, indent=4)
+
+
+class InventoryManager:
+    """
+    Enhanced inventory manager with comprehensive product management.
+    """
+    def __init__(self, storage_path="inventory_data.json"):
+        self.storage = DataStorage(storage_path)
+        self.products = {}
+        self.load_products()
+    
+    def load_products(self):
+        """Load products from storage"""
+        data = self.storage.load_data('products')
+        for product_data in data:
+            product = Product.from_dict(product_data)
+            self.products[product.id] = product
+    
+    def get_product(self, product_id: str):
+        """Get product by ID"""
+        return self.products.get(product_id)
+    
+    def add_product(self, name: str, price: float, initial_stock: int) -> str:
+        """Add a new product to inventory and return its ID"""
+        product = Product(name, price, initial_stock)
+        self.products[product.id] = product
+        self.save_products()
+        return product.id
+    
+    def update_product(self, product_id: str, name: str = None, price: float = None, stock: int = None):
+        """Update product details"""
+        product = self.get_product(product_id)
+        if product:
+            if name is not None:
+                product.name = name
+            if price is not None:
+                product.price = price
+            if stock is not None:
+                product.stock = stock
+            self.save_products()
+            return True
+        return False
+    
+    def update_stock(self, product_id: str, quantity_change: int):
+        """Update product stock"""
+        if product_id in self.products:
+            self.products[product_id].stock += quantity_change
+            self.save_products()
+            return True
+        return False
+    
+    def list_products(self):
+        """List all products"""
+        if not self.products:
+            print("No products in inventory.")
+            return
+        
+        print("\n--- Inventory ---")
+        for product in self.products.values():
+            print(product)
+        print("-----------------")
+    
+    def save_products(self):
+        """Save products to storage"""
+        data = [product.to_dict() for product in self.products.values()]
+        self.storage.save_data(data, 'products')
+
+
+class Order:
+    """
+    Represents a single customer order/sale transaction (Order Processing Module).
+    """
+    def __init__(self, items: dict, order_id: str = None, date: str = None):
+        self.id = order_id if order_id else str(uuid.uuid4())[:8]
+        # items structure: {product_id: quantity_sold}
+        self.items = items
+        self.date = date if date else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    def to_dict(self):
+        """Converts the order object to a dictionary for storage."""
+        return {
+            "id": self.id,
+            "items": self.items,
+            "date": self.date
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        """Creates an Order object from a dictionary loaded from storage."""
+        return cls(items=data['items'], order_id=data['id'], date=data['date'])
+
+    def calculate_total(self, inventory: InventoryManager) -> float:
+        """Calculates the total cost of the order based on current product prices."""
+        total = 0.0
+        for product_id, quantity in self.items.items():
+            product = inventory.get_product(product_id)
+            if product:
+                total += product.price * quantity
+        return total
+    
+    def display_order(self, inventory: InventoryManager):
+        """Display order details"""
+        total = self.calculate_total(inventory)
+        print(f"\n--- Order {self.id} ---")
+        print(f"Date: {self.date}")
+        for product_id, quantity in self.items.items():
+            product = inventory.get_product(product_id)
+            if product:
+                print(f"  {product.name}: {quantity} x ${product.price:.2f} = ${product.price * quantity:.2f}")
+        print(f"Total: ${total:.2f}")
+        print("-------------------")
+
+
+class OrderManager:
+    """
+    Manages all sales orders and provides reporting functions.
+    """
+    def __init__(self, inventory_manager: InventoryManager, storage_path="inventory_data.json"):
+        self.inventory = inventory_manager
+        self.orders = []
+        self.storage = DataStorage(storage_path)
+        self.load_orders()
+
+    def create_order(self, cart: dict) -> Order:
+        """
+        Creates a new order, validates stock, and processes the transaction.
+        Implements the core order processing workflow.
+        """
+        # First, validate all items in cart
+        for product_id, quantity in cart.items():
+            product = self.inventory.get_product(product_id)
+            if not product:
+                print(f"❌ Error: Product ID {product_id} not found. Order cancelled.")
+                return None
+            if product.stock < quantity:
+                print(f"❌ Error: Only {product.stock} of {product.name} available. Order cancelled.")
+                return None
+        
+        # If validation passes, process the order
+        order_items = {}
+        for product_id, quantity in cart.items():
+            # Deduct stock
+            self.inventory.update_stock(product_id, -quantity)
+            order_items[product_id] = quantity
+
+        # Create and Record Order
+        new_order = Order(order_items)
+        self.orders.append(new_order)
+        self.save_orders()
+        total = new_order.calculate_total(self.inventory)
+        print(f"✅ Order {new_order.id} created successfully! Total: ${total:.2f}")
+        return new_order
+
+    # --- Reporting & Analytics Functional Module ---
+    def generate_sales_report(self):
+        """Calculates and displays total revenue across all recorded orders."""
+        if not self.orders:
+            print("No sales orders recorded yet.")
+            return
+
+        total_revenue = sum(order.calculate_total(self.inventory) for order in self.orders)
+        total_items_sold = sum(sum(order.items.values()) for order in self.orders)
+        
+        print("\n--- Sales Report ---")
+        print(f"Total Orders Processed: {len(self.orders)}")
+        print(f"Total Items Sold: {total_items_sold}")
+        print(f"Total Revenue Generated: ${total_revenue:.2f}")
+        print("--------------------")
+
+    def list_orders(self):
+        """List all orders"""
+        if not self.orders:
+            print("No orders recorded yet.")
+            return
+        
+        print("\n--- All Orders ---")
+        for order in self.orders:
+            order.display_order(self.inventory)
+        print("------------------")
+
+    # --- Data Persistence Methods ---
+    def save_orders(self):
+        """Saves all current order data to the persistent storage."""
+        data = [o.to_dict() for o in self.orders]
+        self.storage.save_data(data, 'orders')
+
+    def load_orders(self):
+        """Loads order data from storage into the manager."""
+        data = self.storage.load_data('orders')
+        self.orders = [Order.from_dict(o) for o in data]
+
+
+class InventorySystem:
+    """
+    Main system class that provides a unified interface for inventory and order management.
+    """
+    def __init__(self):
+        self.inventory = InventoryManager()
+        self.order_manager = OrderManager(self.inventory)
+    
+    def run_cli(self):
+        """Simple command-line interface for the inventory system"""
+        while True:
+            print("\n=== Inventory Management System ===")
+            print("1. List Products")
+            print("2. Add Product")
+            print("3. Update Product")
+            print("4. Create Order")
+            print("5. List Orders")
+            print("6. Sales Report")
+            print("7. Exit")
+            
+            choice = input("Enter your choice (1-7): ").strip()
+            
+            if choice == '1':
+                self.inventory.list_products()
+            
+            elif choice == '2':
+                name = input("Enter product name: ").strip()
+                try:
+                    price = float(input("Enter product price: "))
+                    stock = int(input("Enter initial stock: "))
+                    product_id = self.inventory.add_product(name, price, stock)
+                    print(f"✅ Product added with ID: {product_id}")
+                except ValueError:
+                    print("❌ Invalid input. Please enter valid numbers for price and stock.")
+            
+            elif choice == '3':
+                product_id = input("Enter product ID: ").strip()
+                product = self.inventory.get_product(product_id)
+                if not product:
+                    print("❌ Product not found.")
+                    continue
+                
+                print(f"Current: {product}")
+                name = input("Enter new name (or press Enter to keep current): ").strip()
+                price_input = input("Enter new price (or press Enter to keep current): ").strip()
+                stock_input = input("Enter new stock (or press Enter to keep current): ").strip()
+                
+                name = name if name else None
+                try:
+                    price = float(price_input) if price_input else None
+                    stock = int(stock_input) if stock_input else None
+                except ValueError:
+                    print("❌ Invalid input for price or stock. Update failed.")
+                    continue
+                
+                if self.inventory.update_product(product_id, name, price, stock):
+                    print("✅ Product updated successfully.")
+                else:
+                    print("❌ Failed to update product.")
+            
+            elif choice == '4':
+                cart = {}
+                print("\n--- Create New Order ---")
+                while True:
+                    self.inventory.list_products()
+                    product_id = input("Enter product ID to add to cart (or 'done' to finish): ").strip()
+                    if product_id.lower() == 'done':
+                        break
+                    
+                    product = self.inventory.get_product(product_id)
+                    if not product:
+                        print("❌ Product not found.")
+                        continue
+                    
+                    try:
+                        quantity = int(input(f"Enter quantity for {product.name}: "))
+                        if quantity <= 0:
+                            print("❌ Quantity must be positive.")
+                            continue
+                        cart[product_id] = cart.get(product_id, 0) + quantity
+                        print(f"✅ Added {quantity} of {product.name} to cart.")
+                    except ValueError:
+                        print("❌ Invalid quantity.")
+                
+                if cart:
+                    self.order_manager.create_order(cart)
+                else:
+                    print("❌ Cart is empty. Order cancelled.")
+            
+            elif choice == '5':
+                self.order_manager.list_orders()
+            
+            elif choice == '6':
+                self.order_manager.generate_sales_report()
+            
+            elif choice == '7':
+                print("Goodbye!")
+                break
+            
+            else:
+                print("❌ Invalid choice. Please try again.")
+
+
+# Example usage
+if __name__ == "__main__":
+    system = InventorySystem()
+    system.run_cli()
