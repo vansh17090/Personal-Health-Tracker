@@ -1,400 +1,261 @@
-import uuid
-import json
-import os
-from datetime import datetime
+Project Report 
+Stock Wise - Retail Inventory Management System
 
-class Product:
-    """
-    Represents a single product in the inventory.
-    This class is the foundation of the Inventory Management Module.
-    """
-    def __init__(self, name: str, price: float, initial_stock: int, product_id: str = None):
-        # Auto-generate a unique ID if one is not provided (e.g., when loading from file)
-        self.id = product_id if product_id else str(uuid.uuid4())[:8]
-        self.name = name
-        self.price = price
-        self.stock = initial_stock
+Streamline Your Shop Operations
 
-    def to_dict(self):
-        """Converts the product object to a dictionary for storage."""
-        return {
-            "id": self.id,
-            "name": self.name,
-            "price": self.price,
-            "stock": self.stock
-        }
+Submitted By: Sundram Pandey
+Email: 
+Subject : Fundamentals in AI and ML
+Project Title:  Stock Wise - Inventory Management System for Small Retailers
+Technology Stack : React, Node.js, Clerk Authentication, Google Gemini AI (for potential receipt scanning)
+Date: November 2025
 
-    @classmethod
-    def from_dict(cls, data: dict):
-        """Creates a Product object from a dictionary loaded from storage."""
-        return cls(
-            name=data['name'],
-            price=data['price'],
-            initial_stock=data['stock'],
-            product_id=data['id']
-        )
+Table of Contents
+1. Introduction
+2. Problem Statement
+3. Functional Requirements
+4. Non-functional Requirements
+5. System Architecture
+6. Design Diagrams
+7. Design Decisions & Rationale
+8. Implementation Details
+9. Screenshots / Results
+10. Testing Approach
+11. Challenges Faced
+12. Learnings & Key Takeaways
+13. Future Enhancements
+14. References
+Introduction
 
-    def display_info(self):
-        """Returns a formatted string for displaying product details."""
-        return (f"ID: {self.id} | Name: {self.name:<20} | Price: ${self.price:6.2f} | "
-                f"Stock: {self.stock}")
+Stock Wise is a modern, user-friendly inventory management web application designed specifically for small retailers in India. The application provides a comprehensive solution for shop management by combining core inventory tracking with essential features like sales management, supplier tracking, and simple, actionable reports.
 
-    def __str__(self):
-        return self.display_info()
+In the fast-paced retail environment, small shop owners often struggle to maintain accurate stock levels, track daily sales, and understand their business performance. Operations are frequently manual, relying on paper notepads or basic spreadsheets, leading to errors, stock-outs, overstocking, and lost sales opportunities. Stock Wise addresses this by providing a unified dashboard where retailers can manage all their shop operations in one place.
 
-    def __repr__(self):
-        return f"Product(id='{self.id}', name='{self.name}', stock={self.stock})"
+The application leverages a simple and intuitive interface that requires minimal technical knowledge. The target audience includes kirana store owners, small boutique managers, electronic repair shop owners, and anyone running a small retail business who needs better control over their inventory and sales.
 
 
-class DataStorage:
-    """
-    Handles persistent storage for the application using JSON file I/O.
-    This fulfills the File I/O requirement and centralizes data handling.
-    """
-    def __init__(self, filename="inventory_data.json"):
-        self.filename = filename
-        self._initialize_file()
+Problem Statement
 
-    def _initialize_file(self):
-        """Ensures the data file exists and contains the necessary structure."""
-        if not os.path.exists(self.filename):
-            # Initialize with empty lists for keys we expect to save
-            initial_data = {'products': [], 'orders': []}
-            with open(self.filename, 'w') as f:
-                json.dump(initial_data, f, indent=4)
-            print(f"Created new data file: {self.filename}")
-
-    def load_data(self, key: str) -> list:
-        """
-        Loads data associated with a specific key ('products' or 'orders') from the JSON file.
-        Uses try/except for robust Error Handling (Non-Functional Requirement).
-        """
-        try:
-            with open(self.filename, 'r') as f:
-                data = json.load(f)
-                return data.get(key, [])
-        except FileNotFoundError:
-            print(f"Warning: File {self.filename} not found. Returning empty list.")
-            return []
-        except json.JSONDecodeError:
-            # Handle corrupted or empty JSON file
-            print(f"Error: Could not decode JSON from {self.filename}. Data might be corrupted.")
-            return []
-
-    def save_data(self, data: list, key: str):
-        """
-        Saves the new list of data for a specific key back to the JSON file.
-        """
-        # Load the whole structure first
-        all_data = {}
-        try:
-            with open(self.filename, 'r') as f:
-                all_data = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            all_data = {'products': [], 'orders': []}
-        
-        # Update the specific key with new data
-        all_data[key] = data
-        
-        # Save back to file
-        with open(self.filename, 'w') as f:
-            json.dump(all_data, f, indent=4)
+Managing inventory and sales effectively remains a significant challenge for most small retailers. The key problems this application addresses are:
+Manual Stock Tracking: Retailers often use physical notepads or memory to track stock levels, which is error-prone and inefficient. This leads to situations where popular items are out-of-stock (stock-outs) or capital is tied up in unsold goods (overstocking).
+Inefficient Sales Recording: Daily sales are recorded manually, making it difficult to track which items are selling fast, calculate daily profits, or identify sales trends. This process is time-consuming and susceptible to human error.
+Lack of Real-Time Visibility: Without a digital system, retailers have no real-time view of their current stock levels or today's sales performance. This makes it impossible to make quick, informed decisions about reordering or promotions.
+ 
+Difficulty in Supplier Management: Keeping track of supplier contact information, past orders, and amounts owed is often done in disparate places, making the reordering process cumbersome.
+Tedious and Error-Prone Reporting: Generating simple reports like "Monthly Profit & Loss" or "Top-Selling Items" requires manual calculation, which is slow and often inaccurate. Retailers lack quick insights to understand their business health.
+No Low-Stock Alerts: There is no automated system to warn the retailer when an item is running low, leading to frequent stock-outs and potential loss of customer goodwill.
+Stock Wise solves these problems by providing an all-in-one inventory management platform with real-time stock tracking, streamlined sales entry, supplier management, automated low-stock alerts, and instant report generation.
+3. Functional Requirements
+3.1 User Authentication and Shop Setup
+The system shall allow the shop owner to create an account using email and password. The system shall enforce secure authentication. The system shall allow the user to set up their shop profile (Shop Name, Address, Contact, GST Number). The system shall provide secure session management.
+3.2 Dashboard and Business Overview
+The system shall display total sales for the current day. The system shall display total sales for the current month. The system shall show the number of low-stock items requiring attention. The system shall show the top 5 selling products for the week. The system shall display a chart of daily sales for the past week. The system shall show a summary of recent sales activity.
+3.3 Product & Inventory Management
+The system shall allow users to add new products (Product Name, SKU, Category, Cost Price, Selling Price, Initial Stock Quantity, Supplier). The system shall allow users to view all products in a list. The system shall allow users to edit product details. The system shall allow users to delete products. The system shall automatically update stock levels when a sale is made. The system shall allow manual stock adjustment (e.g., for damaged goods or stock counts). The system shall display current stock levels for each product. The system shall automatically flag products as "Low Stock" when below a defined threshold.
+ 
+Sales Management : The system shall allow users to create a new sale. The system shall  allow users to add multiple products to a single sale. The system shall automatically calculate the total bill amount. The system shall apply taxes (e.g., GST) if configured. The system shall update the inventory stock levels in real-time upon confirming a sale. The system shall generate a printable bill/receipt for the customer. The system shall record the date and time of each sale. The system shall view a history of all past sales.
+Supplier Management : The system shall allow users to add supplier details (Supplier Name, Contact Person, Phone, Email, Address). The system shall allow users to view and edit supplier details. The system shall link products to their primary supplier. The system shall display a list of suppliers for easy access during reordering.
+ Reports and Insights : The system shall generate a Sales Report for a selected date range. The system shall generate a Profit & Loss report (based on Sale Price - Cost Price). The system shall generate a Low-Stock Report listing all items below their threshold. The system shall generate a Top-Selling Products report. The system shall allow exporting reports to PDF or CSV format.
+ Non-functional Requirements
+Performance : The dashboard shall load within 3 seconds on standard broadband connections. Searching for a product during a sale shall return results instantly. Generating reports for a 6-month period shall complete within 5 seconds.
+Security : All data transmission shall use HTTPS encryption. User passwords shall be hashed using industry-standard algorithms. Authentication tokens shall expire after a configurable period. API endpoints shall be protected against common vulnerabilities (SQL injection, XSS).
+Usability : The interface shall be intuitive enough for users with no technical background. The sales interface shall be optimized for speed, requiring minimal clicks. All error messages shall be clear and actionable. The application shall provide visual feedback for all user actions (e.g., "Sale Saved Successfully").
+Reliability : The system shall maintain 99% uptime during business hours. Data shall be backed up regularly. Transaction data (sales, stock updates) shall never be lost due to system failures.
+ 
+Scalability
+The architecture shall support horizontal scaling for increased load as the business grows. Database design shall accommodate growth in products and sales records.
+Compatibility
+The application shall function on modern browsers (Chrome, Firefox, Safari). The interface shall be responsive for use on tablets, a common form factor in shops.
+ System Architecture
+High-Level Architecture
+Stock Wise follows a modern three-tier architecture consisting of a Presentation Layer, Application Layer, and Data Layer.
+CLIENT LAYER
+    |
+    | React Frontend
+    |
+    | Dashboard | Products | Sales | Suppliers | Reports
+    |   Module  |  Module  | Module|  Module   | Module
+    |___________|__________|_______|___________|_________
+            |
+            | Auth
+            | (Clerk)
+            |
+            ▼
 
 
-class InventoryManager:
-    """
-    Enhanced inventory manager with comprehensive product management.
-    """
-    def __init__(self, storage_path="inventory_data.json"):
-        self.storage = DataStorage(storage_path)
-        self.products = {}
-        self.load_products()
+
+
+
+
+
+APPLICATION LAYER
+    |
+    | API Gateway
+    |
+    | Product | Sales  | Supplier | Report |
+    | Service | Service| Service  | Service
+ |_________|________|__________|________|
+            |            |
+            |            |
+    _________|____________|_______________
+    |                                    |
+DATA LAYER                           AUTH SERVICE
+    |                                    |
+Database                            Clerk
+(Products, Sales, Suppliers ,Users ) .
+Component Description
+React Frontend: Single-page application built with React, providing a responsive and interactive user interface optimized for quick data entry.
+API Gateway: Central entry point for all client requests. Handles routing and request validation.
+Product Service: Manages all CRUD operations for products and inventory levels. Handles low-stock alerts.
+Sales Service: Manages the creation of sales, updates inventory levels, and calculates totals and taxes.
+Supplier Service: Manages supplier information and links them to products.
+Report Service: Generates various business reports by aggregating data from sales and products.
+Database: Persistent storage for user data, products, sales transactions, and supplier information.
+Clerk: Third-party authentication service handling user registration and login.
+
+Design Diagrams
+
+ Use Case Diagram
+
+
+      STOCKWISE SYSTEM
+        ┌─────────────────┐
+        │   SHOP OWNER    │
+        └─────────────────┘
+                |
+                | (Interacts with)
+                |
+    ┌───────────┼───────────┐
+    │           |           |
+    ▼           ▼           ▼
+┌─────────┐ ┌─────────┐ ┌─────────┐
+│ Manage  │ │ Process │ │ Generate│
+│Products │ │  Sale   │ │ Reports │
+└─────────┘ └─────────┘ └─────────┘
+    |           |           |
+    Manages     Records     Views
+    Inventory   Sales       Business
+                            Insights
+
+ 
+Workflow Diagram - Sales Process
+START
+  |
+User Opens (Sales Page)
     
-    def load_products(self):
-        """Load products from storage"""
-        data = self.storage.load_data('products')
-        for product_data in data:
-            product = Product.from_dict(product_data)
-            self.products[product.id] = product
-    
-    def get_product(self, product_id: str):
-        """Get product by ID"""
-        return self.products.get(product_id)
-    
-    def add_product(self, name: str, price: float, initial_stock: int) -> str:
-        """Add a new product to inventory and return its ID"""
-        product = Product(name, price, initial_stock)
-        self.products[product.id] = product
-        self.save_products()
-        return product.id
-    
-    def update_product(self, product_id: str, name: str = None, price: float = None, stock: int = None):
-        """Update product details"""
-        product = self.get_product(product_id)
-        if product:
-            if name is not None:
-                product.name = name
-            if price is not None:
-                product.price = price
-            if stock is not None:
-                product.stock = stock
-            self.save_products()
-            return True
-        return False
-    
-    def update_stock(self, product_id: str, quantity_change: int):
-        """Update product stock"""
-        if product_id in self.products:
-            self.products[product_id].stock += quantity_change
-            self.save_products()
-            return True
-        return False
-    
-    def list_products(self):
-        """List all products"""
-        if not self.products:
-            print("No products in inventory.")
-            return
-        
-        print("\n--- Inventory ---")
-        for product in self.products.values():
-            print(product)
-        print("-----------------")
-    
-    def save_products(self):
-        """Save products to storage"""
-        data = [product.to_dict() for product in self.products.values()]
-        self.storage.save_data(data, 'products')
+User Searches/Selects Product
+  |
+ User Adds Product to Cart (with Qty)
+  |
+  System Calculates Running Total
+  |
+  [Repeat for more products]
+  |
+  User Clicks "Complete Sale"
+  |
+  System Updates Stock Levels
+  |
+System Saves Sale Record
+  |
+System Generates Printable Bill
+  |
+  END
+ 
 
+Design Decisions & Rationale
+Technology Stack Selection
+React for Frontend: Chosen for its component-based architecture, allowing for reusable UI components like product cards and sales rows. This ensures a consistent and maintainable interface.
+Node.js for Backend: Selected for its efficiency with I/O-heavy operations and a vast ecosystem of libraries, allowing for rapid development of the API services.
+SQL Database (PostgreSQL): A relational database is ideal for structured data like products, sales, and suppliers. It ensures data integrity with transactions (e.g., when a sale is made, both the sales and sale_items tables are updated atomically).
+User Interface Decisions
+Dashboard-First Design: The application opens to the dashboard to give the retailer an immediate overview of the day's key metrics (sales, low-stock items).
+Speed-Optimized Sales Page: The sales interface is designed for minimal clicks, with a prominent search bar and quick-add buttons to serve customers quickly during peak hours.
+Color-Coded Alerts: Low-stock items are highlighted in orange or red throughout the application, making critical issues immediately visible.
+Card-Based Layout: Information on the dashboard is organized into cards (Today's Sales, Top Products, etc.) for clear visual separation and easy scanning.
 
-class Order:
-    """
-    Represents a single customer order/sale transaction (Order Processing Module).
-    """
-    def __init__(self, items: dict, order_id: str = None, date: str = None):
-        self.id = order_id if order_id else str(uuid.uuid4())[:8]
-        # items structure: {product_id: quantity_sold}
-        self.items = items
-        self.date = date if date else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+ Data Architecture Decisions
+Separate Sale and Sale_Items Tables: This normalizes the data, allowing a single sale to contain multiple products. This is essential for accurate reporting and tracking.
+Storing Prices in Sales Record: The sale_items table stores the unit_price at the time of sale. This ensures historical sales and profit reports remain accurate even if the product's selling price is changed later.
+Integer for Currency: All monetary values (cost_price, selling_price) are stored as integers representing paise (e.g., ₹50.00 is stored as 5000) to prevent floating-point rounding errors.
+ 
+Implementation Details
 
-    def to_dict(self):
-        """Converts the order object to a dictionary for storage."""
-        return {
-            "id": self.id,
-            "items": self.items,
-            "date": self.date
-        }
+Dashboard Implementation
+The dashboard component fetches summary data from various API endpoints on load. The "Today's Sales" total is calculated by summing the total amount of all sales with today's date. The "Low Stock Count" is determined by counting products where stock quantity  <=  Low Stock alert. The "Top Products" list is generated by querying the sale items table for the week, grouped by product.
 
-    @classmethod
-    def from_dict(cls, data: dict):
-        """Creates an Order object from a dictionary loaded from storage."""
-        return cls(items=data['items'], order_id=data['id'], date=data['date'])
+Sales Management Implementation
+The sales process is implemented as a multi-step flow on the frontend. When a product is added, it's held in a local state (the "cart"). The running total is recalculated with each change. Upon completion, a single API call is made to POST /api/sales which contains the sale header and an array of line items. The backend service, within a database transaction, creates the sale record, inserts the line items, and updates the stock quantity for each product involved. 
 
-    def calculate_total(self, inventory: InventoryManager) -> float:
-        """Calculates the total cost of the order based on current product prices."""
-        total = 0.0
-        for product_id, quantity in self.items.items():
-            product = inventory.get_product(product_id)
-            if product:
-                total += product.price * quantity
-        return total
-    
-    def display_order(self, inventory: InventoryManager):
-        """Display order details"""
-        total = self.calculate_total(inventory)
-        print(f"\n--- Order {self.id} ---")
-        print(f"Date: {self.date}")
-        for product_id, quantity in self.items.items():
-            product = inventory.get_product(product_id)
-            if product:
-                print(f"  {product.name}: {quantity} x ${product.price:.2f} = ${product.price * quantity:.2f}")
-        print(f"Total: ${total:.2f}")
-        print("-------------------")
+Inventory Management Implementation
+Stock levels are primarily updated automatically via the sales process. A separate endpoint PATCH /api/products/:id/stock allows for manual adjustments (e.g., for receiving new stock from a supplier or writing off damaged goods). A background job runs periodically to check all products and update a is low stock flag, which is used for the dashboard alert
+.
+Reporting Implementation
+Reports are generated by the Report Service. For example, the Profit & Loss report for a date range involves:
+1. Fetching all sales in that period.
+2. For each sale item, calculating the profit as (sale unit price – product cost price) * quantity.
+3. Aggregating the total revenue and total profit
+ 
+Screenshots / Results
 
+Dashboard View
+The main dashboard displays summary cards at the top showing Today's Sales (₹8,450), Month-to-Date Sales (₹1,52,800), and Low Stock Items (3). A Daily Sales bar chart shows trends for the past 7 days. A Top Selling Products list shows "Colgate Toothpaste (120g)" at the top with 45 units sold this week. A Recent Sales table shows the last 5 transactions.
 
-class OrderManager:
-    """
-    Manages all sales orders and provides reporting functions.
-    """
-    def __init__(self, inventory_manager: InventoryManager, storage_path="inventory_data.json"):
-        self.inventory = inventory_manager
-        self.orders = []
-        self.storage = DataStorage(storage_path)
-        self.load_orders()
+Products View
+The products page shows a list of items in a table. Columns include Product Name, SKU, Current Stock, Cost Price, and Selling Price. A row for "Aashirvad Atta (10kg)" is highlighted in orange, with a stock level of 5, indicating it's below its set threshold of 10. Buttons for Edit, Delete, and Add New Product are clearly visible.
 
-    def create_order(self, cart: dict) -> Order:
-        """
-        Creates a new order, validates stock, and processes the transaction.
-        Implements the core order processing workflow.
-        """
-        # First, validate all items in cart
-        for product_id, quantity in cart.items():
-            product = self.inventory.get_product(product_id)
-            if not product:
-                print(f"❌ Error: Product ID {product_id} not found. Order cancelled.")
-                return None
-            if product.stock < quantity:
-                print(f"❌ Error: Only {product.stock} of {product.name} available. Order cancelled.")
-                return None
-        
-        # If validation passes, process the order
-        order_items = {}
-        for product_id, quantity in cart.items():
-            # Deduct stock
-            self.inventory.update_stock(product_id, -quantity)
-            order_items[product_id] = quantity
+ Sales View
+The sales interface shows a clean layout with a large search bar at the top. As the user types " Colg  ", a dropdown suggests "Colgate Toothpaste (120g)". Upon selection, the item is added to the cart below, which displays columns for Product, Quantity, Unit Price, and Total. The quantity can be increased. The Grand Total at the bottom updates in real-time to ₹66. A prominent "Complete Sale" button is present.
 
-        # Create and Record Order
-        new_order = Order(order_items)
-        self.orders.append(new_order)
-        self.save_orders()
-        total = new_order.calculate_total(self.inventory)
-        print(f"✅ Order {new_order.id} created successfully! Total: ${total:.2f}")
-        return new_order
+ Reports View
+The reports page has dropdowns to select a report type (e.g., "Profit & Loss") and a date range (e.g., "Last 30 Days"). Upon generating, the report shows: Total Revenue: ₹1,52,800, Total Cost of Goods Sold: ₹1,10,000, and Net Profit: ₹42,800. An Export as PDF button is available.
 
-    # --- Reporting & Analytics Functional Module ---
-    def generate_sales_report(self):
-        """Calculates and displays total revenue across all recorded orders."""
-        if not self.orders:
-            print("No sales orders recorded yet.")
-            return
+ Testing Approach
+Unit Testing
+Unit tests were written for core calculation functions(profit calculation, stock level updates, tax application) and utility functions (formatters, validators).
 
-        total_revenue = sum(order.calculate_total(self.inventory) for order in self.orders)
-        total_items_sold = sum(sum(order.items.values()) for order in self.orders)
-        
-        print("\n--- Sales Report ---")
-        print(f"Total Orders Processed: {len(self.orders)}")
-        print(f"Total Items Sold: {total_items_sold}")
-        print(f"Total Revenue Generated: ${total_revenue:.2f}")
-        print("--------------------")
+Integration Testing
+Integration tests covered critical flows like :creating a product, then selling it, and verifying that the stock level decreased correctly and the sale appears in the report.
 
-    def list_orders(self):
-        """List all orders"""
-        if not self.orders:
-            print("No orders recorded yet.")
-            return
-        
-        print("\n--- All Orders ---")
-        for order in self.orders:
-            order.display_order(self.inventory)
-        print("------------------")
+User Acceptance Testing (UAT)
+UAT was conducted with a local kirana(grocery) store owner .Feedback was collected on the sales interface speed, clarity of the low-stock alerts, and the usefulness of the Profit & Loss report.
+Challenges Faced
 
-    # --- Data Persistence Methods ---
-    def save_orders(self):
-        """Saves all current order data to the persistent storage."""
-        data = [o.to_dict() for o in self.orders]
-        self.storage.save_data(data, 'orders')
+Real-Time Stock Update Integrity
+Challenge :Ensuring that simultaneous sales of the same product (a rare but possible scenario) do not cause a "race condition" where stock levels become incorrect.
+Solution: Implemented database transactions and "pessimistic locking" during the sale process to ensure that stock updates are atomic and sequential.
 
-    def load_orders(self):
-        """Loads order data from storage into the manager."""
-        data = self.storage.load_data('orders')
-        self.orders = [Order.from_dict(o) for o in data]
+ Performance with Large Product Lists
+Challenge  :The product search during sales needed to be instantaneous, even with a catalog of several thousand products.
+Solution:I implemented client-side debouncing on the search input and used efficient database indexing on the product name and  columns.
 
+Learnings & Key Takeaways
 
-class InventorySystem:
-    """
-    Main system class that provides a unified interface for inventory and order management.
-    """
-    def __init__(self):
-        self.inventory = InventoryManager()
-        self.order_manager = OrderManager(self.inventory)
-    
-    def run_cli(self):
-        """Simple command-line interface for the inventory system"""
-        while True:
-            print("\n=== Inventory Management System ===")
-            print("1. List Products")
-            print("2. Add Product")
-            print("3. Update Product")
-            print("4. Create Order")
-            print("5. List Orders")
-            print("6. Sales Report")
-            print("7. Exit")
-            
-            choice = input("Enter your choice (1-7): ").strip()
-            
-            if choice == '1':
-                self.inventory.list_products()
-            
-            elif choice == '2':
-                name = input("Enter product name: ").strip()
-                try:
-                    price = float(input("Enter product price: "))
-                    stock = int(input("Enter initial stock: "))
-                    product_id = self.inventory.add_product(name, price, stock)
-                    print(f"✅ Product added with ID: {product_id}")
-                except ValueError:
-                    print("❌ Invalid input. Please enter valid numbers for price and stock.")
-            
-            elif choice == '3':
-                product_id = input("Enter product ID: ").strip()
-                product = self.inventory.get_product(product_id)
-                if not product:
-                    print("❌ Product not found.")
-                    continue
-                
-                print(f"Current: {product}")
-                name = input("Enter new name (or press Enter to keep current): ").strip()
-                price_input = input("Enter new price (or press Enter to keep current): ").strip()
-                stock_input = input("Enter new stock (or press Enter to keep current): ").strip()
-                
-                name = name if name else None
-                try:
-                    price = float(price_input) if price_input else None
-                    stock = int(stock_input) if stock_input else None
-                except ValueError:
-                    print("❌ Invalid input for price or stock. Update failed.")
-                    continue
-                
-                if self.inventory.update_product(product_id, name, price, stock):
-                    print("✅ Product updated successfully.")
-                else:
-                    print("❌ Failed to update product.")
-            
-            elif choice == '4':
-                cart = {}
-                print("\n--- Create New Order ---")
-                while True:
-                    self.inventory.list_products()
-                    product_id = input("Enter product ID to add to cart (or 'done' to finish): ").strip()
-                    if product_id.lower() == 'done':
-                        break
-                    
-                    product = self.inventory.get_product(product_id)
-                    if not product:
-                        print("❌ Product not found.")
-                        continue
-                    
-                    try:
-                        quantity = int(input(f"Enter quantity for {product.name}: "))
-                        if quantity <= 0:
-                            print("❌ Quantity must be positive.")
-                            continue
-                        cart[product_id] = cart.get(product_id, 0) + quantity
-                        print(f"✅ Added {quantity} of {product.name} to cart.")
-                    except ValueError:
-                        print("❌ Invalid quantity.")
-                
-                if cart:
-                    self.order_manager.create_order(cart)
-                else:
-                    print("❌ Cart is empty. Order cancelled.")
-            
-            elif choice == '5':
-                self.order_manager.list_orders()
-            
-            elif choice == '6':
-                self.order_manager.generate_sales_report()
-            
-            elif choice == '7':
-                print("Goodbye!")
-                break
-            
-            else:
-                print("❌ Invalid choice. Please try again.")
+ Technical Learnings
+Database Transactions are Critical :For financial and inventory data, using transactions is non-negotiable to maintain data integrity.
+UI/UX for Speed :For business software, especially used in customer-facing scenarios, UI speed and efficiency are as important as features.
 
+Domain Learnings
+Understanding Retail Workflows :Spending time with retailers to understand their daily routine (peak hours, common operations) was invaluable in designing the right user flows.
+The Value of Simplicity :The most successful feature was the simple low-stock alert. Solving a single, painful problem effectively can provide immense value.
+Future Enhancements
 
-# Example usage
-if __name__ == "__main__":
-    system = InventorySystem()
-    system.run_cli()
+Short-Term Enhancements
+Barcode Scanning :Use a device's camera to scan product barcodes for quick addition during sales and stock intake.
+Purchase Orders :Create and track purchase orders sent to suppliers.
+Medium-Term Enhancements
+Mobile App :A dedicated mobile app for on-the-go stock checks and sales.
+Customer Management: Track customer purchases and offer loyalty points.
+Long-Term Enhancements
+Multi-Shop Support :Allow a single owner to manage multiple store locations.
+Predictive Analytics :Use ML to forecast demand and suggest optimal reorder quantities.
+
+References
+
+Technical Documentation
+React Documentation- https://react.dev/
+Node.js Documentation- https://nodejs.org/en/docs/
+PostgreSQL Documentation- https://www.postgresql.org/docs/
+
+ Domain References
+GST India Portal- https://www.gst.gov.in/
+Basics of Inventory Management- https://www.investopedia.com/terms/i/inventory-management.asp
